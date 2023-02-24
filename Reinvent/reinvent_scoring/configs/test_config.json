@@ -1,0 +1,25 @@
+{
+  "DEVELOPMENT_ENVIRONMENT": true,
+  "MAIN_TEST_PATH": "tmp_test_folder",
+  "COMPONENT_SPECIFIC": {
+    "AZDOCK": {
+      "AZDOCK_DOCKER_SCRIPT_PATH": "/opt/scp/services/reinvent/docking/azdock/docker.py",
+      "AZDOCK_ENV_PATH": "/opt/scp/services/reinvent/miniconda3/envs/AZdock/bin/python",
+      "AZDOCK_DEBUG": true
+    },
+    "DOCKSTREAM": {
+      "DOCKSTREAM_DOCKER_SCRIPT_PATH": "/opt/scp/services/reinvent/docking/azdock/docker.py",
+      "DOCKSTREAM_ENV_PATH": "/opt/scp/services/reinvent/miniconda3/envs/AZdock/bin/python",
+      "DOCKSTREAM_DEBUG": true
+    },
+    "ICOLOS": {
+      "ICOLOS_EXECUTOR_PATH": "/<your_path>/miniconda3/envs/icolosprod/bin/icolos",
+      "ICOLOS_DEBUG": true
+    }
+  },
+  "ENVIRONMENTAL_VARIABLES": {
+    "PIP_URL": "https://pip.dummy.net/bapi/{}/predict",
+    "PIP_KEY": "something-secret",
+    "PIP_GET_RESULTS": "https://pip.dummy.net"
+  }
+}

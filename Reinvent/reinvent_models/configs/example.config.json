@@ -1,0 +1,10 @@
+{
+  "USER_NAME": "<provide your username>",
+  "MAIN_TEST_PATH": "<provide writing path for your unit/integration tests>",
+  "DEVELOPMENT_ENVIRONMENT": true,
+  "PRIOR_PATH": "/path/to/reinvents/prior",
+  "LIBINVENT_PRIOR_PATH": "/path/libinvent/prior",
+  "OLD_PRIOR_PATH": null,
+  "OLD_LIBINVENT_PRIOR_PATH": null,
+  "LINK_INVENT_PRIOR_PATH": "path/to/LinkInventPrior",
+}
