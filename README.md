@@ -24,6 +24,8 @@ Download data from [link_to_storage](link) and store in ```utils/data```. This d
 * ```protacdb_extended_linkers.csv```: Processed PROTAC-DB data
 * folder ```xtal_poses```: Processed and fragmented crystal structures
 
+The Link-INVENT prior, which is needed for any RL run, can be accessed [here](https://github.com/MolecularAI/ReinventCommunity/blob/master/notebooks/models/linkinvent.prior).
+
 ## Notebooks
 The notebooks (folder ```notebooks```) used here were adapted from [ReinventCommunity](https://github.com/MolecularAI/ReinventCommunity) and help with preparing runs for RL or sampling. More modes are available on their GitHub repo.
 
