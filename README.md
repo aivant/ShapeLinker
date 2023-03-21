@@ -3,7 +3,7 @@
 The main code is adapted from [Reinvent v3.2](https://github.com/MolecularAI/Reinvent) to include the shape alignment scoring.
 
 ## Requirements
-* Multi-parameter optimization using shape alignment requires the [point_cloud_methods](link_to_repo) repository.
+* Multi-parameter optimization using shape alignment requires two different conda environment (see below).
 * Only works on Cuda-enabled GPU.
 
 ### Installation
@@ -11,7 +11,7 @@ The main code is adapted from [Reinvent v3.2](https://github.com/MolecularAI/Rei
 ```
 conda env create -f env.yml
 ```
-2. Create ```point_cloud_methods``` environment:
+2. Create ```shape_align``` environment:
 ```
 conda env create -f shape_align.yml
 ```

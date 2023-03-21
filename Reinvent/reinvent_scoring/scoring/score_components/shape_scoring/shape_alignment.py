@@ -4,7 +4,7 @@ import io
 
 class ShapeAlignment():
 
-    def calculate_alignment_score(self, query_file, smiles, model_path, query_type, alignment_repo_path, 
+    def calculate_alignment_score(self, query_file, smiles, model_path, query_type,
                                 alignment_env, num_conformers, poses_folder, es_weight, step, 
                                 mode = 'linkinvent', correct_flipping = False):
         if mode == 'linkinvent':
@@ -21,7 +21,6 @@ class ShapeAlignment():
             num_conformers, 
             poses_folder, 
             step, 
-            alignment_repo_path, 
             es_weight, 
             correct_flipping)
         current_scores = self._print_cmd_retrieve_results(command, len(smiles))
@@ -40,7 +39,6 @@ class ShapeAlignment():
         num_conformers, 
         poses_folder, 
         step, 
-        alignment_repo_path, 
         es_weight, 
         correct_flipping):
         concat_smiles = '"' + ';'.join(smiles) + '"'
@@ -54,7 +52,6 @@ class ShapeAlignment():
                             '--num_conformers', str(num_conformers),
                             '--output_folder', poses_folder,
                             '--step', str(step),
-                            '--alignment_repo_path', alignment_repo_path,
                             '--es_weight', str(es_weight),
                             '--correct_flipping' if correct_flipping else '',
                             ])

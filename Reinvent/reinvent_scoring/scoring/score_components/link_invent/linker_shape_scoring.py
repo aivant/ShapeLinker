@@ -26,7 +26,6 @@ class LinkerShapeScoring(BaseLinkInventComponent):
 
         self.model_path = self.parameters.specific_parameters.get(self.component_specific_parameters.MODEL_PATH, "")
         self.query = self.parameters.specific_parameters.get(self._shape_specific_params.QUERY, "")
-        self.alignment_repo = self.parameters.specific_parameters.get(self._shape_specific_params.ALIGNMENT_REPO, "")
         self.alignment_env = self.parameters.specific_parameters.get(self._shape_specific_params.ALIGNMENT_ENV, "")
         self.num_conformers = self.parameters.specific_parameters.get(self._shape_specific_params.NUM_CONFORMERS, 4)
         self.poses_folder = self.parameters.specific_parameters.get(self._shape_specific_params.POSES_FOLDER, "")
@@ -45,7 +44,7 @@ class LinkerShapeScoring(BaseLinkInventComponent):
         linker_mols = [x for x in linker_mols if x is not None]
         valid_smiles = self._chemistry.mols_to_smiles(linker_mols)
         raw_scores = self._alignment.calculate_alignment_score(self.query, valid_smiles, self.model_path, 
-                                                    self.query_type, self.alignment_repo, self.alignment_env, self.num_conformers,
+                                                    self.query_type, self.alignment_env, self.num_conformers,
                                                     self.poses_folder, self.es_weight, step, mode = 'linkinvent',
                                                     correct_flipping = self.correct_flipping)
         for i in invalid_idx:

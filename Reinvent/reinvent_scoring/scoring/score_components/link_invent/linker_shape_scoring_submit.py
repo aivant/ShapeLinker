@@ -6,6 +6,7 @@ Takes SMILES from the console, aligns to a query molecule and saves the aligned 
 import os
 import sys
 
+from pathlib import Path
 import numpy as np
 import copy
 import torch
@@ -23,8 +24,9 @@ class LinkerShapeScoringSubmit:
         self.output_path = os.path.join(self.args.output_folder, f'poses_step_{self.args.step}')
 
     def main(self):
-        sys.path.append(self.args.alignment_repo_path)
-        from structural.molecule import MoleculeInfo
+        root = Path("linker_shape_scoring_submit.py").parent.absolute()
+        sys.path.append(str(root))
+        from shape_alignment.molecule import MoleculeInfo
 
         os.makedirs(self.output_path, exist_ok=True)
 
@@ -271,7 +273,6 @@ if __name__ == "__main__":
     parser.add_argument('--num_conformers', type=int, help='Number of conformers to generate for each SMILES', default=4)
     parser.add_argument('--output_folder', type=str, help='Folder to save output files')
     parser.add_argument('--step', type=int, help='Step of the RL run.')
-    parser.add_argument('--alignment_repo_path', type=str, help='Path to the alignment repo')
     parser.add_argument('--es_weight', type=float, help='Weight of electrostatics in the combined score', default=0.0)
     parser.add_argument('--correct_flipping', action='store_true', help='Resample for correct orientation of alignment.', default=False)
 

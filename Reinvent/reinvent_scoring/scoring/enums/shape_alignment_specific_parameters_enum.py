@@ -5,7 +5,6 @@ from dataclasses import dataclass
 class ShapeAlignmentSpecificParametersEnum:
     QUERY_TYPE = "query_type"
     QUERY = "query"
-    ALIGNMENT_REPO = "alignment_repo_path"
     MODEL_PATH = "model_path"
     ALIGNMENT_ENV = "alignment_env"
     NUM_CONFORMERS = "num_conformers"
