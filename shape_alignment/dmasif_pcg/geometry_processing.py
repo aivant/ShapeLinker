@@ -2,105 +2,20 @@ import numpy as np
 from math import pi
 import torch
 from pykeops.torch import LazyTensor
-from plyfile import PlyData, PlyElement
-from shape_alignment.dmasif.helper import *
+from shape_alignment.dmasif_pcg.helper import *
 import torch.nn as nn
 import torch.nn.functional as F
 import open3d as o3d
 import copy
 import typing as ty
 
-# from matplotlib import pyplot as plt
-from pykeops.torch.cluster import grid_cluster, cluster_ranges_centroids, from_matrix
-from math import pi, sqrt
+from pykeops.torch.cluster import grid_cluster
+from math import sqrt
 import scipy
 import random
 
 
-
-
-# Input-Output for tests =======================================================
-
-import os
-from pyvtk import PolyData, PointData, CellData, Scalars, Vectors, VtkData, PointData
-from geometricus.geometricus import MomentInvariants, SplitType, MomentType
-
-
-def points_to_invariants(point_cloud: np.ndarray, radius: float):
-    moments = MomentInvariants.from_coordinates(
-        "-", point_cloud, 
-        split_size=radius, 
-        split_type=SplitType.RADIUS,
-        moment_types=list(MomentType)
-    ).moments
-    return ((np.sign(moments) * np.log1p(np.abs(moments))) / radius).astype("float32")
-
-
-
-def save_vtk(
-    fname, xyz, triangles=None, values=None, vectors=None, triangle_values=None
-):
-    """Saves a point cloud or triangle mesh as a .vtk file.
-
-    Files can be opened with Paraview or displayed using the PyVista library.
-
-    Args:
-        fname (string): filename.
-        xyz (Tensor): (N,3) point cloud or vertices.
-        triangles (integer Tensor, optional): (T,3) mesh connectivity. Defaults to None.
-        values (Tensor, optional): (N,D) values, supported by the vertices. Defaults to None.
-        vectors (Tensor, optional): (N,3) vectors, supported by the vertices. Defaults to None.
-        triangle_values (Tensor, optional): (T,D) values, supported by the triangles. Defaults to None.
-    """
-
-    # Encode the points/vertices as a VTK structure:
-    if triangles is None:  # Point cloud
-        structure = PolyData(points=numpy(xyz), vertices=np.arange(len(xyz)))
-    else:  # Surface mesh
-        structure = PolyData(points=numpy(xyz), polygons=numpy(triangles))
-
-    data = [structure]
-    pointdata, celldata = [], []
-
-    # Point values - one channel per column of the `values` array:
-    if values is not None:
-        values = numpy(values)
-        if len(values.shape) == 1:
-            values = values[:, None]
-        features = values.T
-        pointdata += [
-            Scalars(f, name=f"features_{i:02d}") for i, f in enumerate(features)
-        ]
-
-    # Point vectors - one vector per point:
-    if vectors is not None:
-        pointdata += [Vectors(numpy(vectors), name="vectors")]
-
-    # Store in the VTK object:
-    if pointdata != []:
-        pointdata = PointData(*pointdata)
-        data.append(pointdata)
-
-    # Triangle values - one channel per column of the `triangle_values` array:
-    if triangle_values is not None:
-        triangle_values = numpy(triangle_values)
-        if len(triangle_values.shape) == 1:
-            triangle_values = triangle_values[:, None]
-        features = triangle_values.T
-        celldata += [
-            Scalars(f, name=f"features_{i:02d}") for i, f in enumerate(features)
-        ]
-
-        celldata = CellData(*celldata)
-        data.append(celldata)
-
-    #  Write to hard drive:
-    vtk = VtkData(*data)
-    os.makedirs(os.path.dirname(fname), exist_ok=True)
-    vtk.tofile(fname)
-
-
-# On-the-fly generation of the surfaces ========================================
+# Code adapted from dmasif point cloud generation
 
 
 def subsample(x, batch=None, scale=1.0):

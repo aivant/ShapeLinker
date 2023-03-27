@@ -1,24 +1,18 @@
-from tqdm import tqdm
-
-from shape_alignment.dmasif.geometry_processing import points_to_invariants, ransac_registration, ElasticDistortion, \
+from shape_alignment.dmasif_pcg.geometry_processing import ransac_registration, ElasticDistortion, \
     atoms_to_points_normals, curvatures
 import torch
 import typing as ty
 from dataclasses import dataclass
-from shape_alignment.dmasif.data_preprocessing.convert_single_mol_sdf2npy import load_sdf_np, mol_to_np
-from shape_alignment.dmasif.data_preprocessing.convert_smiles2npy import load_smiles_np
-from shape_alignment.dmasif.data_preprocessing.convert_mol2npy import load_mol2_np
 import numpy as np
 from torch.nn.utils.rnn import pad_sequence
 from pathlib import Path
-from shape_alignment.dmasif.mol_model import AtomNet_MP
+from shape_alignment.dmasif_pcg.mol_model import AtomNet_MP
 import open3d as o3d
 from pytorch3d.loss import chamfer_distance
 
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from copy import deepcopy
-from shape_alignment.dmasif.data_preprocessing import chem_utils
 from pytorch3d import transforms
 import prody as pd
 from pytorch3d import transforms
@@ -27,35 +21,6 @@ from rdkit.Chem.rdMolInterchange import JSONToMols
 
 ELE2NUM = {"C": 0, "C1": 0, "H": 1, "O": 2, "N": 3, "S": 4, "SE": 5, "other": 6, "filler": 7}
 
-
-# def get_conformers_and_atoms(smiles, num_conformers, optimize=True, torsion_noise=0):
-#     # Generate molecule
-#     # m = Chem.MolFromSmiles(smiles)
-#     # m = Chem.AddHs(m)
-#     # Chem.AllChem.EmbedMultipleConfs(m, numConfs=num_conformers)
-
-#     # # Setup forcefield
-#     # mp = Chem.rdForceFieldHelpers.MMFFGetMoleculeProperties(m)
-#     # ff = Chem.rdForceFieldHelpers.MMFFGetMoleculeForceField(m, mp)
-
-#     m = Chem.MolFromSmiles(smiles)
-#     AllChem.EmbedMultipleConfs(m, num_conformers)
-#     if optimize:
-#         AllChem.MMFFOptimizeMoleculeConfs(m, mmffVariant="MMFF94s")
-#     m = Chem.AddHs(m, addCoords=True)
-
-
-#     # if optimize:
-#     #     Chem.rdForceFieldHelpers.OptimizeMoleculeConfs(m, ff, numThreads=16, maxIters=200)
-
-#     # m = Chem.AddHs(m, addCoords=True)
-#     if torsion_noise > 0:
-#         chem_utils.add_noise_to_torsion_angles(m, deg=torsion_noise)
-#     for mol in m.GetConformers():
-#         conformer_coords = mol.GetPositions().copy()
-#         atom_types = [x.GetSymbol() for x in m.GetAtoms()]
-#         assert len(atom_types) == conformer_coords.shape[0]
-#         yield atom_types, conformer_coords
 
 def batches_to_variable_length(sequence, batches):
     variable_sequences = []
@@ -84,7 +49,7 @@ class AtomInfo:
         return cls(coords, atom_type, attributes)
 
     @property
-    def str(self) -> str:
+    def _str(self) -> str:
         coord_segment = ""
         for c in self.coordinates:
             if c < 0:
@@ -117,7 +82,7 @@ class BondInfo:
         return cls(line)
 
     @property
-    def str(self) -> str:
+    def _str(self) -> str:
         return self.bond
 
 
@@ -140,10 +105,6 @@ class MoleculeInfo:
     atom_block: ty.List[AtomInfo]
     bond_block: ty.List[BondInfo]
     smiles: ty.Union[str, None] = None
-
-    @classmethod
-    def from_cavity(cls, pdb_file, chain_id, cavity_id):
-        pass
 
     @classmethod
     def from_rdkit_mol(cls, rdkit_object):
@@ -187,9 +148,6 @@ class MoleculeInfo:
             enforceChirality=True,
             numThreads=-1)
 
-        # if optimize:
-        #     
-        #     Chem.rdForceFieldHelpers.MMFFOptimizeMoleculeConfs(m, numThreads=12) #AllChem.MMFFOptimizeMoleculeConfs(m, numThreads=0)
         if addhs_in_post and add_hs:
             m = Chem.AddHs(m, addCoords=True)
         mol_block: str = Chem.MolToMolBlock(m)
@@ -221,7 +179,7 @@ class MoleculeInfo:
         for a in self.atom_block:
             lines.append(a.rdstr)
         for b in self.bond_block:
-            lines.append(b.str)
+            lines.append(b._str)
         lines.append("M  END")
         return ("\n".join(lines))
 
@@ -564,7 +522,6 @@ def get_molecule_infos_from_smiles_with_batched_conformers(smiles, number_of_con
             continue
 
 
-
 @dataclass
 class Molecules:
     atom_coordinates: torch.Tensor
@@ -660,7 +617,7 @@ class Molecules:
         coords = list()
 
         for i, coord in enumerate(lists_of_coords):
-            npys = mol_to_np(atom_names=lists_of_atomnames[i], coords=coord, center=False)
+            npys = cls.mol_to_np(lists_of_atomnames[i], coord, False)
             current_coords, current_atomtypes = npys["xyz"].astype(np.float32), npys["types"].astype(np.float32)
             batch = np.zeros(len(current_coords), dtype=int)
             batch[:] = i
@@ -679,7 +636,7 @@ class Molecules:
         for i, pdb_path in enumerate(pdb_paths):
             coord = pd.parsePDB(pdb_path).select(f"chain {sub_cavity_id} resname SUB").getCoords()
             atom_names = coord.shape[0] * [atom_type]
-            npys = mol_to_np(atom_names=atom_names, coords=coord, center=False)
+            npys = cls.mol_to_np(atom_names=atom_names, coords=coord, center=False)
             current_coords, current_atomtypes = npys["xyz"].astype(np.float32), npys["types"].astype(np.float32)
             batch = np.zeros(len(current_coords), dtype=int)
             batch[:] = i
@@ -705,25 +662,6 @@ class Molecules:
             atom_types.append(torch.tensor(current_atomtypes, device=device))
 
         return cls(torch.vstack(coords), torch.concat(batches), torch.vstack(atom_types))
-
-
-    # @classmethod
-    # def from_list_of_smiles(cls, multi_smiles, number_of_conformers=1, optimize=True, device="cuda", torsion_noise=0, geometricus=False):
-    #     batches = list()
-    #     atom_types = list()
-    #     coords = list()
-    #     b_num = 0
-    #     for smiles in multi_smiles:
-    #         for conformer in load_smiles_np(smiles, number_of_conformers, center=False, optimize=optimize, torsion_noise=torsion_noise):
-    #             current_coords = conformer["xyz"].astype(np.float32)
-    #             current_atomtypes = conformer["types"].astype(np.float32)
-    #             batch = np.zeros(len(current_coords), dtype=np.float32)
-    #             batch[:] = b_num
-    #             batches.append(torch.tensor(batch.astype(int), device=device))
-    #             coords.append(torch.tensor(current_coords, device=device))
-    #             atom_types.append(torch.tensor(current_atomtypes, device=device))
-    #             b_num += 1
-    #     return cls(torch.vstack(coords), torch.concat(batches), torch.vstack(atom_types), geometricus=geometricus)
 
     @classmethod
     def from_smiles_conformers(cls, smiles, number_of_conformers: int = 1, max_attempts: int = 10_000,
@@ -781,24 +719,6 @@ class Molecules:
     molecule_infos=molecule_infos)
 
     @classmethod
-    def from_list_of_mol2(cls, mol2_files, device="cuda", geometricus=False):
-        batches = list()
-        atom_types = list()
-        coords = list()
-        b_num = 0
-        for mol2 in mol2_files:
-            for conformer in load_mol2_np(mol2, center=False):
-                current_coords = conformer["xyz"].astype(np.float32)
-                current_atomtypes = conformer["types"].astype(np.float32)
-                batch = np.zeros(len(current_coords), dtype=np.float32)
-                batch[:] = b_num
-                batches.append(torch.tensor(batch.astype(int), device=device))
-                coords.append(torch.tensor(current_coords, device=device))
-                atom_types.append(torch.tensor(current_atomtypes, device=device))
-                b_num += 1
-        return cls(torch.vstack(coords), torch.concat(batches), torch.vstack(atom_types), geometricus=geometricus)
-
-    @classmethod
     def from_list_of_sdf_files(cls, sdf_files, number_of_conformers: int = 1,
                                device="cuda", geometricus: bool = False, random_rotation: bool = False, add_hs=True):
         batches = list()
@@ -836,25 +756,6 @@ class Molecules:
         if center:
             coords = coords - np.mean(coords, axis=0, keepdims=True)
         return {"xyz": coords, "types": types_array}
-
-    # @classmethod
-    # def from_list_of_sdf_files(cls, sdf_file_paths, device="cuda", t="sdf"):
-    #     batches = list()
-    #     atom_types = list()
-    #     coords = list()
-    #     b_num = 0
-    #     for sdf_path in sdf_file_paths:
-    #         for conformer in load_sdf_np(sdf_path, center=False):
-    #             current_coords = conformer["xyz"].astype(np.float32)
-    #             current_atomtypes = conformer["types"].astype(np.float32)
-    #             batch = np.zeros(len(current_coords), dtype=np.float32)
-    #             batch[:] = b_num
-    #             batches.append(torch.tensor(batch.astype(int), device=device))
-    #             coords.append(torch.tensor(current_coords, device=device))
-    #             atom_types.append(torch.tensor(current_atomtypes, device=device))
-    #             b_num += 1
-    #
-    #     return cls(torch.vstack(coords), torch.concat(batches), torch.vstack(atom_types))
 
     def update_surface_points_and_normals(self, resolution: float = .5, sup_sampling: int = 100, nits: int = 6,
                                           distance: float = 1.05):
@@ -951,40 +852,10 @@ class Molecules:
             self.surface_geometricus_embeddings = self.surface_geometricus_embeddings.cuda()
 
     def update_geometricus_features(self, radius: float = 8.):
-        geom_all = []
-        for i in range(self.surface_batches.max() + 1):
-            geom_all.append(
-                torch.hstack((
-                    torch.tensor(
-                        points_to_invariants(
-                            self.surface_coordinates[self.surface_batches == i].cpu().detach().numpy().astype(
-                                np.float64), radius).astype(np.float32),
-                        device=self.device),
-                    torch.tensor(
-                        points_to_invariants(
-                            self.surface_normals[self.surface_batches == i].cpu().detach().numpy().astype(np.float64),
-                            radius).astype(np.float32),
-                        device=self.device)))
-            )
-        self.surface_geometricus_embeddings = torch.vstack(geom_all)
+        self.surface_geometricus_embeddings = None
 
     def update_per_atom_invariants(self, radius: float = 10.):
-        geom_all = []
-        for i in range(self.atom_batches.max() + 1):
-            geom_all.append(
-                torch.hstack((
-                    torch.tensor(
-                        points_to_invariants(
-                            self.atom_coordinates[self.atom_batches == i].cpu().detach().numpy().astype(np.float64),
-                            radius).astype(np.float32),
-                        device=self.device),
-                    torch.tensor(
-                        points_to_invariants(
-                            self.atom_coordinates[self.atom_batches == i].cpu().detach().numpy().astype(np.float64),
-                            radius).astype(np.float32),
-                        device=self.device)))
-            )
-        self.atom_geometricus_embeddings = torch.nan_to_num(torch.vstack(geom_all))
+        self.atom_geometricus_embeddings = None
 
     def get_per_atom_invariants(self, radius: float = 10.):
         if self.atom_geometricus_embeddings is None:
@@ -1240,9 +1111,6 @@ def crippen_multi(sdf_file, smiles, num_conf=50, add_hs=True, iterations=50, max
             useBasicKnowledge=True,
             enforceChirality=True,
             numThreads=-1)
-
-        # AllChem.EmbedMolecule(smiles_mol)
-        # AllChem.MMFFOptimizeMolecule(smiles_mol)
 
         (score, rmsd, trans) = p2p_alignment(smiles_mol, sdf_mol, iterations=iterations)
         Chem.rdMolTransforms.TransformConformer(smiles_mol.GetConformer(0), trans)

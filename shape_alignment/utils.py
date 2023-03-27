@@ -1,12 +1,11 @@
 from shape_alignment import models, molecule
 import torch
 from shape_alignment.molecule import Molecules, MoleculeInfo
-from shape_alignment.loss import chamfer_distance as cmf
 from tqdm.notebook import tqdm
-from shape_alignment.dmasif.mol_model import get_atom_features
+from shape_alignment.dmasif_pcg.mol_model import get_atom_features
 from rdkit import Chem
 from rdkit import RDLogger
-from shape_alignment.loss import chamfer_distance
+from pytorch3d.loss import chamfer_distance
 
 lg = RDLogger.logger()
 lg.setLevel(RDLogger.CRITICAL)
