@@ -13,7 +13,9 @@ conda env create -f env.yml
 ```
 2. Create ```shape_align``` environment:
 ```
-conda env create -f shape_align.yml
+conda create -n shape_align python=3.9 pytorch=1.13.0 torchvision pytorch-cuda=11.6 fvcore iopath nvidiacub pytorch3d -c bottler -c fvcore -c iopath -c pytorch -c nvidia -c pytorch3d
+conda activate shape_align
+pip install pykeops biotite open3d plyfile ProDy pykeops rdkit==2022.9.5 tqdm==4.49.0 unidip
 ```
 
 ## Data
