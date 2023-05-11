@@ -1,14 +1,14 @@
 
 
-# start with the multi-head attention model using pytorch lightning. 
-# This should accept molecule object as batches 
+# start with the multi-head attention model using pytorch lightning.
+# This should accept molecule object as batches
     # Same number of atoms but padded surface
 
 import torch
 import pytorch_lightning as pl
 from pytorch3d.loss import chamfer_distance as cmf
 from torch.nn import MultiheadAttention
-from shape_alignment.dmasif_pcg.geometry_processing import ransac_registration, get_registration_result
+from structural.dmasif_pcg.geometry_processing import ransac_registration, get_registration_result
 import numpy as np
 
 
@@ -19,7 +19,7 @@ def reflect(U, R, Vt, A):
             SS[i] = torch.diag(torch.tensor([1.,1., 1.], device=A.device))
         else:
             SS[i] = torch.diag(torch.tensor([1.,1., 1.], device=A.device))
-    
+
     R =  torch.bmm(U, torch.bmm(torch.transpose(SS, 1, 2), Vt))
 
     return R
@@ -42,7 +42,7 @@ def n_dim_rigid_transform_Kabsch_3D_torch(A: torch.Tensor, B: torch.Tensor)-> tu
 
     H = torch.transpose(Bm, 1, 2) @ Am
     U, S, Vt = torch.linalg.svd(H)
-    R = U @ Vt    
+    R = U @ Vt
     # print(R.shape)
     R = traced_reflect(U, R, Vt, A)
 
@@ -115,7 +115,7 @@ class PCRBaseMasked(torch.nn.Module):
         coords = self.lin_out(cross.reshape(-1, cross.shape[-1])).reshape((batch_size, -1, 3))
         rot, trans = n_dim_rigid_transform_Kabsch_3D_torch(coords + x[:, :, :3], x[:, :, :3]) # add the relative coords and register original coordinates
         return rot, trans, y_translate[:,:,:3], x_centroid
-    
+
     def get_pseudo_coords(self, x_orig, y_orig, y_lengths=None):
         batch_size: int = x_orig.shape[0]
 
@@ -157,7 +157,7 @@ class PCRSingleMasked(pl.LightningModule):
                     ransac_scores.append(cmf(torch.tensor(q.reshape((1, -1, 3))), torch.tensor(t.reshape((1, -1, 3))))[0].item())
             self.validation_ransac_distance: torch.Tensor = torch.tensor(ransac_scores).cuda().mean()
         self.save_hyperparameters()
-        
+
     def forward(self, x_orig, y_orig):
         coords = self.coarse(x_orig, y_orig)
         return coords

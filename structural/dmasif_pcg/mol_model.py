@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from pykeops.torch import LazyTensor
-from shape_alignment.dmasif_pcg.helper import diagonal_ranges
+from structural.dmasif_pcg.helper import diagonal_ranges
 
 
 def knn_atoms(x, y, x_batch, y_batch, k):

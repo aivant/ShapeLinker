@@ -1,4 +1,4 @@
-from shape_alignment.dmasif_pcg.geometry_processing import ransac_registration, ElasticDistortion, \
+from structural.dmasif_pcg.geometry_processing import ransac_registration, ElasticDistortion, \
     atoms_to_points_normals, curvatures
 import torch
 import typing as ty
@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import numpy as np
 from torch.nn.utils.rnn import pad_sequence
 from pathlib import Path
-from shape_alignment.dmasif_pcg.mol_model import AtomNet_MP
+from structural.dmasif_pcg.mol_model import AtomNet_MP
 import open3d as o3d
 from pytorch3d.loss import chamfer_distance
 
@@ -632,7 +632,7 @@ class Molecules:
         batches = list()
         atom_types = list()
         coords = list()
-        
+
         for i, pdb_path in enumerate(pdb_paths):
             coord = pd.parsePDB(pdb_path).select(f"chain {sub_cavity_id} resname SUB").getCoords()
             atom_names = coord.shape[0] * [atom_type]
@@ -824,7 +824,7 @@ class Molecules:
         chem_features = self.get_chem_features(atomnet_model)
         # self.update_geometricus_features(radius=radius)
         return torch.cat([chem_features, self.surface_geometricus_embeddings], dim=1).contiguous()
-    
+
 
     def get_geom_and_curve_features(
             self,
@@ -1091,7 +1091,7 @@ def crippen_multi(sdf_file, smiles, num_conf=50, add_hs=True, iterations=50, max
         sdf_mol = Chem.AddHs(sdf_mol, addCoords=True)
     for i in range(num_conf):
         smiles_mol = Chem.MolFromSmiles(smiles)
-        
+
         if add_hs:
             smiles_mol = Chem.AddHs(smiles_mol, addCoords=True)
 

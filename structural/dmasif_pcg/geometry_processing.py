@@ -2,7 +2,7 @@ import numpy as np
 from math import pi
 import torch
 from pykeops.torch import LazyTensor
-from shape_alignment.dmasif_pcg.helper import *
+from structural.dmasif_pcg.helper import *
 import torch.nn as nn
 import torch.nn.functional as F
 import open3d as o3d
@@ -169,7 +169,7 @@ def atoms_to_points_normals(
     T = distance
 
     N, D = atoms.shape
-    
+
     B = sup_sampling  # Sup-sampling ratio
 
     # Batch vectors:
@@ -492,7 +492,7 @@ def curvatures(
 class ContiguousBackward(torch.autograd.Function):
     """
     Function to ensure contiguous gradient in backward pass. To be applied after PyKeOps reduction.
-    N.B.: This workaround fixes a bug that will be fixed in ulterior KeOp releases. 
+    N.B.: This workaround fixes a bug that will be fixed in ulterior KeOp releases.
     """
     @staticmethod
     def forward(ctx, input):
@@ -702,9 +702,9 @@ class dMaSIFConv(nn.Module):
             # Convolution parameters:
             if self.cheap:
                 # Extract a slice of Hd lines: (H, 3) -> (Hd, 3)
-                A = self.conv[0].weight[head_start:head_end, :].contiguous()  
+                A = self.conv[0].weight[head_start:head_end, :].contiguous()
                 # Extract a slice of Hd coefficients: (H,) -> (Hd,)
-                B = self.conv[0].bias[head_start:head_end].contiguous() 
+                B = self.conv[0].bias[head_start:head_end].contiguous()
                 AB = torch.cat((A, B[:, None]), dim=1)  # (Hd, 4)
                 ab = LazyTensor(AB.view(1, 1, -1))  # (1, 1, Hd*4)
             else:
@@ -781,7 +781,7 @@ def execute_global_registration(source_down, target_down, source_fpfh,
     # print("   Since the downsampling voxel size is %.3f," % voxel_size)
     # print("   we use a liberal distance threshold %.3f." % distance_threshold)
     result = o3d.pipelines.registration.registration_ransac_based_on_feature_matching(
-        source_down, target_down, source_fpfh, target_fpfh, 
+        source_down, target_down, source_fpfh, target_fpfh,
         True,
         distance_threshold,
         o3d.pipelines.registration.TransformationEstimationPointToPoint(False),
@@ -843,7 +843,7 @@ def get_registration_result(source, target, transformation):
 
 
 class ElasticDistortion:
-    """Apply elastic distortion on sparse coordinate space. First projects the position onto a 
+    """Apply elastic distortion on sparse coordinate space. First projects the position onto a
     voxel grid and then apply the distortion to the voxel grid.
 
     Parameters

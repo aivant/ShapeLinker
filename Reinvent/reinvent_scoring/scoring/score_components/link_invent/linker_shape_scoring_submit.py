@@ -26,12 +26,12 @@ class LinkerShapeScoringSubmit:
     def main(self):
         root = Path("linker_shape_scoring_submit.py").parent.absolute()
         sys.path.append(str(root))
-        from shape_alignment.molecule import MoleculeInfo
+        from structural.molecule import MoleculeInfo
 
         os.makedirs(self.output_path, exist_ok=True)
 
         query_path = os.path.join(self.args.output_folder, 'query.mol')
-        
+
         if not os.path.isfile(query_path):
             if self.args.query_type == 'sdf':
                 self.query_mol = MoleculeInfo.from_sdf(self.args.query_file)
@@ -43,16 +43,16 @@ class LinkerShapeScoringSubmit:
         else:
             query_molblock = Chem.MolToMolBlock(Chem.MolFromMolFile(query_path))
             self.query_mol = MoleculeInfo.from_molblock(query_molblock)
-        
+
         smiles = self._smiles_from_console(self.args.smiles_cmd)
-        
+
         self.model = torch.load(self.args.model_path)
         self.model = self.model.to(self.device)
         self.model.eval()
 
         if not os.path.isfile(os.path.join(self.args.output_folder, 'query.mol')):
             self.query_mol.write_to_file(os.path.join(self.args.output_folder, 'query.mol'))
-        
+
         self.query_rdkit_mol = Chem.MolFromMolFile(query_path)
 
         smiles_dict = {}
@@ -60,7 +60,7 @@ class LinkerShapeScoringSubmit:
         for i, smile in enumerate(smiles):
             smiles_dict[i] = smile
             score_rmsd_dict[i] = (np.nan, np.nan)
-        
+
         goal_nonflip = 0.9
         max_iter = 5
         self.completed = 0
@@ -87,7 +87,7 @@ class LinkerShapeScoringSubmit:
                             score_rmsd_dict[i] = (score, rmsd)
                         iterations += 1
                         self._get_num_completed(score_rmsd_dict)
-                    
+
         scores = [score_rmsd_dict[i][0] for i in sorted(score_rmsd_dict.keys())]
 
         return scores
@@ -106,7 +106,7 @@ class LinkerShapeScoringSubmit:
     def _get_score(self, smile, i):
         pose_file = os.path.join(self.output_path, f'pose_{i}_{smile}.mol')
         try:
-            alignment = self.query_mol.align_to_multiconformer_smiles_fast2(smile, model=self.model, number_of_conformers=self.args.num_conformers, 
+            alignment = self.query_mol.align_to_multiconformer_smiles_fast2(smile, model=self.model, number_of_conformers=self.args.num_conformers,
                                                                     device=self.device, addhs_in_post=False, es_weight=self.args.es_weight)
             score = alignment.combined_distance
             mol_pose = alignment.molecule_2
@@ -118,7 +118,7 @@ class LinkerShapeScoringSubmit:
                 rmsd = np.nan
         except:
             try:
-                alignment = self.query_mol.align_to_multiconformer_smiles_fast2(smile, model=self.model, number_of_conformers=self.args.num_conformers, 
+                alignment = self.query_mol.align_to_multiconformer_smiles_fast2(smile, model=self.model, number_of_conformers=self.args.num_conformers,
                                                                         device=self.device, addhs_in_post=True, es_weight=self.args.es_weight)
                 score = alignment.combined_distance
                 mol_pose = alignment.molecule_2
@@ -129,7 +129,7 @@ class LinkerShapeScoringSubmit:
                 else:
                     rmsd = np.nan
             except:
-                score = 99 # when conformer optimization still fails, assign unreasonably high score     
+                score = 99 # when conformer optimization still fails, assign unreasonably high score
                 rmsd = np.nan
         return score, rmsd
 
@@ -140,7 +140,7 @@ class LinkerShapeScoringSubmit:
                 return self.find_next_atom(mol, mcs_match, only_mol, ringinfo)
         else:
             return mcs_match, only_mol
-            
+
     def find_next_atom(self, mol, mcs_match, only_mol, ringinfo):
         atom_next_idx = None
         for bond in mol.GetBonds():
@@ -174,7 +174,7 @@ class LinkerShapeScoringSubmit:
             mcs_mol_adapt = self.remove_atoms(mol1, only_mol1)
             mcs_match2_adapt = mol2.GetSubstructMatch(mcs_mol_adapt)
         else:
-            mcs_mol_adapt = self.remove_atoms(mol1, only_mol1) 
+            mcs_mol_adapt = self.remove_atoms(mol1, only_mol1)
         return mcs_mol_adapt
 
     def get_substruct_frags(self, mol1, mol2):
@@ -187,7 +187,7 @@ class LinkerShapeScoringSubmit:
     def remove_atoms(self, mol, indices):
         remove_atoms = sorted(indices, reverse=True)
         # Chem.Kekulize(mol)
-        mol_red = Chem.RWMol(mol)    
+        mol_red = Chem.RWMol(mol)
         for idx in remove_atoms:
             mol_red.RemoveAtom(idx)
         mol_red = mol_red.GetMol()
@@ -218,10 +218,10 @@ class LinkerShapeScoringSubmit:
                 mol2_copy = copy.deepcopy(mol2)
                 frag_mol2 = self.get_frags(mol2_copy, idx2)
                 if frag_mol2.HasSubstructMatch(frag_mol1) and frag_mol1.HasSubstructMatch(frag_mol2):
-                    both_matches.append(self.mapnum_2_indices(frag_mol1, 
+                    both_matches.append(self.mapnum_2_indices(frag_mol1,
                                                         frag_mol2))
         return both_matches
-    
+
     def mapnum_2_indices(self, mol1, mol2):
         mapnum_to_idx = {}
         indices1_ori = [a.GetAtomMapNum()-1 for a in mol1.GetAtoms()]
@@ -243,14 +243,14 @@ class LinkerShapeScoringSubmit:
 
     def calc_rmsd_all(self, coords1, coords2):
         '''
-        Calculates the RMSD between two sets of coordinates. 
+        Calculates the RMSD between two sets of coordinates.
         Need to be in matching order.
         '''
         rmsd = 0
         for i in range(len(coords1)):
             rmsd += (coords1[i].x - coords2[i].x)**2 + (coords1[i].y - coords2[i].y)**2 + (coords1[i].z - coords2[i].z)**2
         rmsd = np.sqrt(rmsd/len(coords1))
-        
+
         return rmsd
 
     def calc_mcs_rmsd(self, mol1, mol2):

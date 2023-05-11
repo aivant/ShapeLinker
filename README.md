@@ -3,8 +3,9 @@
 The main code is adapted from [Reinvent v3.2](https://github.com/MolecularAI/Reinvent) to include the shape alignment scoring.
 
 ## Requirements
-* Multi-parameter optimization using shape alignment requires two different conda environment (see below).
+* Multi-parameter optimization using shape alignment requires two different conda environments (see below).
 * Only works on Cuda-enabled GPU.
+* The code was tested on Debian 10 only.
 
 ### Installation
 1. Create ShapeLinker conda environment
@@ -13,9 +14,11 @@ conda env create -f env.yml
 ```
 2. Create ```shape_align``` environment:
 ```
-conda create -n shape_align python=3.9 pytorch=1.13.0 torchvision pytorch-cuda=11.6 fvcore iopath nvidiacub pytorch3d -c bottler -c fvcore -c iopath -c pytorch -c nvidia -c pytorch3d
+conda install -c conda-forge mamba
+mamba create -n shape_align python=3.9 pytorch=1.13.0 torchvision pytorch-cuda=11.6 fvcore iopath nvidiacub pytorch3d -c bottler -c fvcore -c iopath -c pytorch -c nvidia -c pytorch3d
 conda activate shape_align
 pip install pykeops biotite open3d plyfile ProDy pykeops rdkit==2022.9.5 tqdm==4.49.0 unidip pytorch-lightning
+pip install git+https://github.com/hesther/espsim.git
 ```
 
 ## Data
