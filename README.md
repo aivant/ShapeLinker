@@ -1,6 +1,10 @@
 # ShapeLinker
-[ShapeLinker](link_to_preprint) is a method for the shape-conditioned ***de novo*** linker design for PROTACs. It is based on [Link-INVENT](https://chemrxiv.org/engage/chemrxiv/article-details/62628b2debac3a61c7debf31) and uses reinforcement learning to steer the linker generation towards a desired query shape.
-The main code is adapted from [Reinvent v3.2](https://github.com/MolecularAI/Reinvent) to include the shape alignment scoring.
+[ShapeLinker](link_to_preprint) is a method for the shape-conditioned ***de novo*** linker design for PROTACs. It is based on [Link-INVENT](https://chemrxiv.org/engage/chemrxiv/article-details/62628b2debac3a61c7debf31) and uses reinforcement learning to steer the linker generation towards a query shape with desired physicochemical properties. Shape alignment is performed with a novel, fast attention-based point cloud alignment method.
+<div style="width: 60%; height: 60%">
+
+  ![](scheme.png)
+
+</div>
 
 ## Requirements
 * Multi-parameter optimization using shape alignment requires two different conda environments (see below).
@@ -40,6 +44,6 @@ Steps to get directory structure used in notebooks:
 3. Dump ```linkinvent.prior``` in ```ShapeLinker/models```
 
 ## Usage
-The notebooks (folder ```notebooks```) used here were adapted from [ReinventCommunity](https://github.com/MolecularAI/ReinventCommunity) and help with preparing runs for RL or sampling. There is also a notebook to help with training the shape alignment model.
+The notebooks (folder ```ShapeLinker/notebooks```) used here were adapted from [ReinventCommunity](https://github.com/MolecularAI/ReinventCommunity) and help with preparing runs for RL or sampling. There is also a notebook to help with training a shape alignment model (```notebooks/train_shape_alignment_model.ipynb```). We recommend training a new model for poses different from the crystal structures investigated here (of which the extended linkers were used).
 
 The folder ```utils/postprocessing``` contains more useful jupyter notebooks allowing the postprocessing and evaluation of the generated data.
