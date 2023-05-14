@@ -7,3 +7,5 @@
 .DS_Store
 .pynb_checkpoints
 utils/data
+models
+results

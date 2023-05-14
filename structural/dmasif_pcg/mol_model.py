@@ -1,19 +1,8 @@
-import math
-import time
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.autograd.profiler as profiler
 from pykeops.torch import LazyTensor
-
-from shape_alignment.dmasif.geometry_processing import (
-    curvatures,
-    mesh_normals_areas,
-    tangent_vectors,
-    atoms_to_points_normals,
-)
-from shape_alignment.dmasif.helper import soft_dimension, diagonal_ranges
-from shape_alignment.dmasif.benchmark_models import DGCNN_seg, PointNet2_seg, dMaSIFConv_seg
+from structural.dmasif_pcg.helper import diagonal_ranges
 
 
 def knn_atoms(x, y, x_batch, y_batch, k):
@@ -51,9 +40,9 @@ def get_atom_features(x, y, x_batch, y_batch, y_atomtype, k=16):
 
 
 class Atom_embedding(nn.Module):
-    def __init__(self, args):
+    def __init__(self, atom_dims):
         super(Atom_embedding, self).__init__()
-        self.D = args.atom_dims
+        self.D = atom_dims
         self.k = 16
         self.conv1 = nn.Linear(self.D + 1, self.D)
         self.conv2 = nn.Linear(self.D, self.D)
@@ -82,19 +71,18 @@ class Atom_embedding(nn.Module):
 
 
 class AtomNet(nn.Module):
-    def __init__(self, args):
+    def __init__(self, atom_dims):
         super(AtomNet, self).__init__()
-        self.args = args
 
         self.transform_types = nn.Sequential(
-            nn.Linear(args.atom_dims, args.atom_dims),
+            nn.Linear(atom_dims, atom_dims),
             nn.LeakyReLU(negative_slope=0.2),
-            nn.Linear(args.atom_dims, args.atom_dims),
+            nn.Linear(atom_dims, atom_dims),
             nn.LeakyReLU(negative_slope=0.2),
-            nn.Linear(args.atom_dims, args.atom_dims),
+            nn.Linear(atom_dims, atom_dims),
             nn.LeakyReLU(negative_slope=0.2),
         )
-        self.embed = Atom_embedding(args)
+        self.embed = Atom_embedding(atom_dims)
 
     def forward(self, xyz, atom_xyz, atomtypes, batch, atom_batch):
         # Run a DGCNN on the available information:
@@ -102,9 +90,9 @@ class AtomNet(nn.Module):
         return self.embed(xyz, atom_xyz, atomtypes, batch, atom_batch)
 
 class Atom_embedding_MP(nn.Module):
-    def __init__(self, args):
+    def __init__(self, atom_dims):
         super(Atom_embedding_MP, self).__init__()
-        self.D = args.atom_dims
+        self.D = atom_dims
         self.k = 16
         self.n_layers = 3
         self.mlp = nn.ModuleList(
@@ -143,9 +131,9 @@ class Atom_embedding_MP(nn.Module):
         return point_emb
 
 class Atom_Atom_embedding_MP(nn.Module):
-    def __init__(self, args):
+    def __init__(self, atom_dims):
         super(Atom_Atom_embedding_MP, self).__init__()
-        self.D = args.atom_dims
+        self.D = atom_dims
         self.k = 17
         self.n_layers = 3
 
@@ -189,18 +177,17 @@ class Atom_Atom_embedding_MP(nn.Module):
         return out
 
 class AtomNet_MP(nn.Module):
-    def __init__(self, args):
+    def __init__(self, atom_dims):
         super(AtomNet_MP, self).__init__()
-        self.args = args
 
         self.transform_types = nn.Sequential(
-            nn.Linear(args.atom_dims, args.atom_dims),
+            nn.Linear(atom_dims, atom_dims),
             nn.LeakyReLU(negative_slope=0.2),
-            nn.Linear(args.atom_dims, args.atom_dims),
+            nn.Linear(atom_dims, atom_dims),
         )
 
-        self.embed = Atom_embedding_MP(args)
-        self.atom_atom = Atom_Atom_embedding_MP(args)
+        self.embed = Atom_embedding_MP(atom_dims)
+        self.atom_atom = Atom_Atom_embedding_MP(atom_dims)
 
     def forward(self, xyz, atom_xyz, atomtypes, batch, atom_batch):
         # Run a DGCNN on the available information:
@@ -285,202 +272,3 @@ def project_iface_labels(P, threshold=2.0):
     ).float()  # If chain is not connected because of missing densities MaSIF cut out a part of the protein
     query_labels = labels[nn_i] * nn_dist_i
     P["labels"] = query_labels
-
-class dMaSIF(nn.Module):
-    def __init__(self, args):
-        super(dMaSIF, self).__init__()
-        # Additional geometric features: mean and Gauss curvatures computed at different scales.
-        self.curvature_scales = args.curvature_scales
-        self.args = args
-
-        I = args.in_channels
-        O = args.orientation_units
-        E = args.emb_dims
-        H = args.post_units
-
-        # Computes chemical features
-        self.atomnet = AtomNet_MP(args)
-        self.dropout = nn.Dropout(args.dropout)
-
-        if args.embedding_layer == "dMaSIF":
-            # Post-processing, without batch norm:
-            self.orientation_scores = nn.Sequential(
-                nn.Linear(I, O),
-                nn.LeakyReLU(negative_slope=0.2),
-                nn.Linear(O, 1),
-            )
-
-            # Segmentation network:
-            self.conv = dMaSIFConv_seg(
-                args,
-                in_channels=I,
-                out_channels=E,
-                n_layers=args.n_layers,
-                radius=args.radius,
-            )
-
-            # Asymmetric embedding
-            if args.search:
-                self.orientation_scores2 = nn.Sequential(
-                    nn.Linear(I, O),
-                    nn.LeakyReLU(negative_slope=0.2),
-                    nn.Linear(O, 1),
-                )
-
-                self.conv2 = dMaSIFConv_seg(
-                    args,
-                    in_channels=I,
-                    out_channels=E,
-                    n_layers=args.n_layers,
-                    radius=args.radius,
-                )
-
-        elif args.embedding_layer == "DGCNN":
-            self.conv = DGCNN_seg(I + 3, E,self.args.n_layers,self.args.k)
-            if args.search:
-                self.conv2 = DGCNN_seg(I + 3, E,self.args.n_layers,self.args.k)
-
-        elif args.embedding_layer == "PointNet++":
-            self.conv = PointNet2_seg(args, I, E)
-            if args.search:
-                self.conv2 = PointNet2_seg(args, I, E)
-
-        if args.site:
-            # Post-processing, without batch norm:
-            self.net_out = nn.Sequential(
-                nn.Linear(E, H),
-                nn.LeakyReLU(negative_slope=0.2),
-                nn.Linear(H, H),
-                nn.LeakyReLU(negative_slope=0.2),
-                nn.Linear(H, 1),
-            )
-
-    def features(self, P, i=1):
-        """Estimates geometric and chemical features from a protein surface or a cloud of atoms."""
-        if (
-            not self.args.use_mesh and "xyz" not in P
-        ):  # Compute the pseudo-surface directly from the atoms
-            # (Note that we use the fact that dicts are "passed by reference" here)
-            P["xyz"], P["normals"], P["batch"] = atoms_to_points_normals(
-                P["atoms"],
-                P["batch_atoms"],
-                atomtypes=P["atomtypes"],
-                resolution=self.args.resolution,
-                sup_sampling=self.args.sup_sampling,
-            )
-
-        # Estimate the curvatures using the triangles or the estimated normals:
-        P_curvatures = curvatures(
-            P["xyz"],
-            triangles=P["triangles"] if self.args.use_mesh else None,
-            normals=None if self.args.use_mesh else P["normals"],
-            scales=self.curvature_scales,
-            batch=P["batch"],
-        )
-
-        # Compute chemical features on-the-fly:
-        chemfeats = self.atomnet(
-            P["xyz"], P["atom_xyz"], P["atomtypes"], P["batch"], P["batch_atoms"]
-        )
-
-        if self.args.no_chem:
-            chemfeats = 0.0 * chemfeats
-        if self.args.no_geom:
-            P_curvatures = 0.0 * P_curvatures
-
-        # Concatenate our features:
-        return torch.cat([P_curvatures, chemfeats], dim=1).contiguous()
-
-    def embed(self, P):
-        """Embeds all points of a protein in a high-dimensional vector space."""
-
-        features = self.dropout(self.features(P))
-        P["input_features"] = features
-
-        torch.cuda.synchronize(device=features.device)
-        torch.cuda.reset_max_memory_allocated(device=P["atoms"].device)
-        begin = time.time()
-
-        # Ours:
-        if self.args.embedding_layer == "dMaSIF":
-            self.conv.load_mesh(
-                P["xyz"],
-                triangles=P["triangles"] if self.args.use_mesh else None,
-                normals=None if self.args.use_mesh else P["normals"],
-                weights=self.orientation_scores(features),
-                batch=P["batch"],
-            )
-            P["embedding_1"] = self.conv(features)
-            if self.args.search:
-                self.conv2.load_mesh(
-                    P["xyz"],
-                    triangles=P["triangles"] if self.args.use_mesh else None,
-                    normals=None if self.args.use_mesh else P["normals"],
-                    weights=self.orientation_scores2(features),
-                    batch=P["batch"],
-                )
-                P["embedding_2"] = self.conv2(features)
-
-        # First baseline:
-        elif self.args.embedding_layer == "DGCNN":
-            features = torch.cat([features, P["xyz"]], dim=-1).contiguous()
-            P["embedding_1"] = self.conv(P["xyz"], features, P["batch"])
-            if self.args.search:
-                P["embedding_2"] = self.conv2(
-                    P["xyz"], features, P["batch"]
-                )
-
-        # Second baseline
-        elif self.args.embedding_layer == "PointNet++":
-            P["embedding_1"] = self.conv(P["xyz"], features, P["batch"])
-            if self.args.search:
-                P["embedding_2"] = self.conv2(P["xyz"], features, P["batch"])
-
-        torch.cuda.synchronize(device=features.device)
-        end = time.time()
-        memory_usage = torch.cuda.max_memory_allocated(device=P["atoms"].device)
-        conv_time = end - begin
-
-        return conv_time, memory_usage
-
-    def preprocess_surface(self, P):
-        P["xyz"], P["normals"], P["batch"] = atoms_to_points_normals(
-            P["atoms"],
-            P["batch_atoms"],
-            atomtypes=P["atomtypes"],
-            resolution=self.args.resolution,
-            sup_sampling=self.args.sup_sampling,
-            distance=self.args.distance,
-        )
-        if P['mesh_labels'] is not None:
-            project_iface_labels(P)
-
-    def forward(self, P1, P2=None):
-        # Compute embeddings of the point clouds:
-        if P2 is not None:
-            P1P2 = combine_pair(P1, P2)
-        else:
-            P1P2 = P1
-
-        conv_time, memory_usage = self.embed(P1P2)
-
-        # Monitor the approximate rank of our representations:
-        R_values = {}
-        R_values["input"] = soft_dimension(P1P2["input_features"])
-        R_values["conv"] = soft_dimension(P1P2["embedding_1"])
-
-        if self.args.site:
-            P1P2["iface_preds"] = self.net_out(P1P2["embedding_1"])
-
-        if P2 is not None:
-            P1, P2 = split_pair(P1P2)
-        else:
-            P1 = P1P2
-
-        return {
-            "P1": P1,
-            "P2": P2,
-            "R_values": R_values,
-            "conv_time": conv_time,
-            "memory_usage": memory_usage,
-        }

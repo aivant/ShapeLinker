@@ -1,17 +1,16 @@
-from shape_alignment import models, molecule
+from structural import models, molecule
 import torch
-from shape_alignment.molecule import Molecules, MoleculeInfo
-from shape_alignment.loss import chamfer_distance as cmf
+from structural.molecule import Molecules, MoleculeInfo
 from tqdm.notebook import tqdm
-from shape_alignment.dmasif.mol_model import get_atom_features
+from structural.dmasif_pcg.mol_model import get_atom_features
 from rdkit import Chem
 from rdkit import RDLogger
-from shape_alignment.loss import chamfer_distance
+from pytorch3d.loss import chamfer_distance
 
 lg = RDLogger.logger()
 lg.setLevel(RDLogger.CRITICAL)
 import numpy as np
-from shape_alignment.models import PCRSingleMasked
+from structural.models import PCRSingleMasked
 
 
 def padded_with_zeromask(point_features, surface_batches):
