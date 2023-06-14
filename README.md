@@ -26,7 +26,7 @@ pip install git+https://github.com/hesther/espsim.git
 ```
 
 ## Data
-Download data and models from [the data storage](link). This data dump includes:
+Download data and models from [https://storage.googleapis.com/vantai-public-archive/shapelinker](https://storage.googleapis.com/vantai-public-archive/shapelinker). This data dump includes:
 
 * folder ```data```
     * folder ```xtal_poses```: Processed and fragmented crystal structures
@@ -40,8 +40,20 @@ The Link-INVENT prior, which is needed for any RL run, can be accessed [here](ht
 
 Steps to get directory structure used in notebooks:
 1. Store folder ```data``` in ```ShapeLinker/utils```
+```
+cd ShapeLinker/utils
+gsutil cp -r gs://vantai-public-archive/shapelinker/data .
+```
 2. Store folder ```models``` in ```ShapeLinker```
+```
+cd ShapeLinker
+gsutil cp -r gs://vantai-public-archive/shapelinker/models . # includes trained RL agents
+```
 3. Dump ```linkinvent.prior``` in ```ShapeLinker/models```
+```
+cd ShapeLinker/models
+wget https://github.com/MolecularAI/ReinventCommunity/raw/master/notebooks/models/linkinvent.prior
+```
 
 ## Usage
 The notebooks (folder ```ShapeLinker/notebooks```) used here were adapted from [ReinventCommunity](https://github.com/MolecularAI/ReinventCommunity) and help with preparing runs for RL or sampling. There is also a notebook to help with training a shape alignment model (```notebooks/train_shape_alignment_model.ipynb```). We recommend training a new model for poses different from the crystal structures investigated here (of which the extended linkers were used).
