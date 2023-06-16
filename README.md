@@ -1,5 +1,7 @@
 # ShapeLinker
-[ShapeLinker](link_to_preprint) is a method for the shape-conditioned ***de novo*** linker design for PROTACs. It is based on [Link-INVENT](https://chemrxiv.org/engage/chemrxiv/article-details/62628b2debac3a61c7debf31) and uses reinforcement learning to steer the linker generation towards a query shape with desired physicochemical properties. Shape alignment is performed with a novel, fast attention-based point cloud alignment method.
+[ShapeLinker](http://arxiv.org/abs/2306.08166) is a method for the shape-conditioned ***de novo*** linker design for PROTACs. It is based on [Link-INVENT](https://chemrxiv.org/engage/chemrxiv/article-details/62628b2debac3a61c7debf31) and uses reinforcement learning to steer the linker generation towards a query shape with desired physicochemical properties. Shape alignment is performed with a novel, fast attention-based point cloud alignment method.
+
+Preprint: [Reinforcement Learning-Driven Linker Design via Fast Attention-based Point Cloud Alignment](http://arxiv.org/abs/2306.08166)
 <div style="width: 60%; height: 60%">
 
   ![](scheme.png)
