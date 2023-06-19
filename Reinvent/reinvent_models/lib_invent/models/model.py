@@ -19,7 +19,7 @@ class DecoratorModel:
         :param vocabulary: A DecoratorVocabulary instance with the vocabularies of both the encoder and decoder.
         :param network_params: A dict with parameters for the encoder and decoder networks.
         :param decorator: An decorator network instance.
-        :param max_sequence_length: Maximium number of tokens allowed to sample.
+        :param max_sequence_length: Maximum number of tokens allowed to sample.
         :param no_cuda: Forces the model not to use CUDA, even if it is available.
         :param mode: Mode in which the model should be initialized.
         :return:
