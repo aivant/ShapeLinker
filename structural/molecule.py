@@ -512,6 +512,19 @@ def get_molecule_infos_from_smiles_with_batched_conformers(smiles, number_of_con
         enforceChirality=True,
         numThreads=-1)
 
+    number_of_conformers_ = number_of_conformers
+    while m.GetNumConformers() < number_of_conformers:
+        number_of_conformers_ *= 2
+        AllChem.EmbedMultipleConfs(
+                m,
+                numConfs=number_of_conformers_,
+                maxAttempts=max_attempts,
+                pruneRmsThresh=.1,
+                useExpTorsionAnglePrefs=True,
+                useBasicKnowledge=True,
+                enforceChirality=True,
+                numThreads=-1)
+
     if addhs_in_post and add_hs:
         m = Chem.AddHs(m, addCoords=True, )
     for i in range(number_of_conformers):
